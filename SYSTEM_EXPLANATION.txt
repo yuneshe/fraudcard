@@ -1,0 +1,202 @@
+FRAUD DETECTION SYSTEM - SYSTEM OVERVIEW
+========================================
+
+SYSTEM ARCHITECTURE
+-------------------
+Components:
+- Laravel Backend (http://localhost:8000) - PHP framework handling web requests and business logic
+- Python ML Service (http://127.0.0.1:5000) - Flask API with scikit-learn fraud detection model
+- MySQL Database - Stores users, transactions, and fraud reports
+- Blade Frontend - Laravel views for dashboard, transactions, alerts, reports, and prediction
+
+DATABASE SCHEMA
+---------------
+users table:
+- id, name, email, password, role (admin/analyst), timestamps
+- Authentication handled via Laravel Sanctum (disabled in demo mode)
+
+transactions table:
+- id, transaction_id (unique), Amount, Time, merchant
+- risk_score (float), fraud_status (boolean)
+- V1-V28 (PCA-transformed features from Kaggle dataset)
+- Indexed on transaction_id, fraud_status, risk_score, transaction_time
+
+fraud_reports table:
+- id, transaction_id (foreign key), risk_score (float)
+- prediction (string: 'fraud'/'legitimate'), confidence (float)
+- Linked to transactions via foreign key with cascade delete
+
+FRAUD DETECTION FLOW
+--------------------
+1. User enters transaction details in prediction form at /predict
+2. Laravel validates input (Amount, Time, merchant)
+3. Laravel generates random V1-V28 features (for demo)
+4. Laravel sends POST request to Python ML service at http://127.0.0.1:5000/predict
+5. Python service loads selected ML model (RandomForest, LogisticRegression, SVM, or DecisionTree)
+6. Features are scaled using StandardScaler
+7. Model processes features and returns prediction
+8. Result displayed in Laravel frontend with risk indicators
+
+ML MODEL DETAILS
+---------------
+Algorithms: Multiple models supported
+- RandomForest Classifier (default)
+- Logistic Regression
+- Support Vector Machine (SVM)
+- Decision Tree
+
+Training Data: Kaggle Credit Card Fraud Dataset (284,807 transactions, 0.17% fraud rate)
+Features:
+- Time: Seconds elapsed since first transaction
+- V1-V28: PCA-transformed features (anonymized transaction characteristics)
+- Amount: Transaction amount in dollars
+- merchant: Merchant category (string)
+
+Model Parameters (RandomForest):
+- n_estimators: 50 (reduced for memory efficiency)
+- max_depth: 10
+- min_samples_split: 5
+- class_weight: balanced
+- n_jobs: 1 (single thread for memory efficiency)
+
+Model Files:
+- fraud_model_randomforest.pkl
+- fraud_model_logisticregression.pkl
+- fraud_model_svm.pkl
+- fraud_model_decisiontree.pkl
+- scaler.pkl
+- feature_names.pkl
+
+Outputs:
+- fraud: 0 (legitimate) or 1 (fraudulent)
+- prediction: 'fraud' or 'legitimate'
+- risk_score: Probability of fraud (0.0 to 1.0)
+- confidence: Maximum probability (0.0 to 1.0)
+- probabilities: {legitimate: float, fraud: float}
+
+FRONTEND PAGES
+--------------
+Dashboard (/dashboard):
+- Total transactions, fraudulent count, fraud rate, average risk score
+- Transaction distribution doughnut chart (Chart.js)
+- Daily transactions bar chart (last 7 days)
+- Recent alerts section (high-risk and fraud transactions)
+
+Transactions (/transactions):
+- Paginated list of all transactions
+- Filter by fraud status and minimum risk score
+- Shows transaction ID, Amount, merchant, risk score, status, Time
+- Create new transaction with automatic ML prediction
+
+Alerts (/alerts):
+- High risk transactions (risk score > 0.7)
+- Recent fraud transactions
+- Real-time monitoring indicator
+
+Reports (/reports):
+- Summary statistics table
+- Daily transaction report with fraud rates
+- Export to CSV functionality
+
+Prediction (/predict):
+- Form to input transaction details (Amount, Time, merchant)
+- Algorithm selection dropdown (RandomForest, LogisticRegression, SVM, DecisionTree)
+- Real-time fraud prediction from Python ML service
+- Display prediction results with risk indicators
+
+Analysis (/analysis):
+- Statistical analysis from ML service
+- Fraud distribution doughnut chart
+- Feature correlations bar chart
+- Merchant category analysis dual-axis bar chart
+- Amount statistics (mean, median, std, min, max)
+- Time statistics
+
+CURRENT CONFIGURATION
+---------------------
+Mode: Demo (no authentication required)
+Database: MySQL with 100 sample transactions (20% fraud rate)
+Python Service: Running on http://127.0.0.1:5000
+Laravel Server: Running on http://localhost:8000
+Session Driver: File (for local development)
+Default Algorithm: RandomForest
+Available Algorithms: RandomForest, LogisticRegression, SVM, DecisionTree
+
+API ENDPOINTS
+-------------
+Public API Routes:
+- POST /api/register - User registration
+- POST /api/login - User authentication
+- GET /api/transactions/statistics - Transaction statistics
+- GET /api/transactions/alerts - High risk and recent fraud
+- POST /api/transactions - Create new transaction with ML prediction
+- GET /api/transactions - List all transactions (paginated)
+- GET /api/transactions/{id} - Get specific transaction
+
+Python ML Service Endpoints:
+- POST /predict - Single transaction prediction (accepts algorithm parameter)
+- POST /batch_predict - Batch prediction for multiple transactions
+- POST /analyze - Data analysis and statistics
+- GET /health - Service health check
+- GET /models - List available ML algorithms
+
+Web Routes:
+- GET / - Dashboard
+- GET /dashboard - Dashboard
+- GET /transactions - Transaction list
+- GET /transactions/create - Create new transaction
+- POST /transactions - Store new transaction with ML prediction
+- GET /transactions/{id} - Transaction details
+- GET /alerts - Fraud alerts
+- GET /reports - Reports
+- GET /reports/export - Export to CSV
+- GET /predict - Prediction form
+- POST /predict - Submit prediction request
+- GET /analysis - Data analysis page
+
+FILE STRUCTURE
+--------------
+backend/
+- app/Http/Controllers/Api/ - API controllers
+- app/Http/Controllers/Web/ - Web controllers
+- app/Models/ - Eloquent models (User, Transaction, FraudReport)
+- database/migrations/ - Database migrations (including Kaggle features migration)
+- database/seeders/ - Database seeders
+- resources/views/ - Blade templates (dashboard, transactions, alerts, reports, predict, analysis)
+- routes/web.php - Web routes
+- routes/api.php - API routes
+
+ml-service/
+- app.py - Flask API server with multi-algorithm support
+- train_model.py - Model training script with argparse for algorithm selection
+- fraud_model_randomforest.pkl - Trained Random Forest model
+- fraud_model_logisticregression.pkl - Trained Logistic Regression model
+- fraud_model_svm.pkl - Trained SVM model
+- fraud_model_decisiontree.pkl - Trained Decision Tree model
+- scaler.pkl - Feature scaler
+- feature_names.pkl - Feature names (Time, V1-V28, Amount)
+- creditcard.csv - Kaggle dataset (284,807 transactions)
+- requirements.txt - Python dependencies (includes pandas, scikit-learn, flask, joblib)
+
+STARTUP INSTRUCTIONS
+--------------------
+1. Start MySQL database
+2. Start Laravel backend: php artisan serve (from backend directory)
+3. Start Python ML service: python app.py (from ml-service directory)
+4. Access application at http://localhost:8000
+
+SECURITY NOTES
+--------------
+- Authentication disabled for demo mode
+- Sanctum tokens available for API authentication
+- CSRF protection temporarily disabled
+- Session storage using file driver
+- No input validation on API endpoints (add for production)
+
+PERFORMANCE CONSIDERATIONS
+-------------------------
+- ML model uses single thread to reduce memory usage
+- Random Forest with 50 trees for faster inference
+- File-based session storage for simplicity
+- Database indexes on frequently queried columns
+- Pagination for large transaction lists
