@@ -75,13 +75,13 @@ class TransactionController extends Controller
 
                 // Save fraud report
                 FraudReport::create([
-                    'transaction_id' => $transaction->transaction_id,
+                    'transaction_id' => $transaction->id,
                     'risk_score' => $prediction['risk_score'],
                     'prediction' => $prediction['prediction'],
                     'confidence' => $prediction['confidence'],
                 ]);
 
-                return redirect()->route('transactions.show', $transaction->id)
+                return redirect()->route('transactions.index')
                     ->with('success', "Transaction created with fraud prediction using {$algorithm}");
             }
 
